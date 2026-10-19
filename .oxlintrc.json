@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc", "jsx-a11y"],
+  "plugins": ["typescript", "oxc"],
   "categories": {
     "correctness": "error"
   },
@@ -8,9 +8,6 @@
     "eqeqeq": ["error", "always", { "null": "ignore" }],
     "no-var": "error",
     "prefer-const": "error",
-    "react/rules-of-hooks": "error",
-    "react/exhaustive-deps": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }],
     "typescript/consistent-type-imports": [
       "error",
       {
