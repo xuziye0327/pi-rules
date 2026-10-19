@@ -1,8 +1,27 @@
-import babel from '@rolldown/plugin-babel'
-import react, { reactCompilerPreset } from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { isBuiltin } from 'node:module'
+import { fileURLToPath } from 'node:url'
 
-// https://vite.dev/config/
+import { defaultServerConditions, defaultServerMainFields, defineConfig } from 'vite'
+
 export default defineConfig({
-  plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
+  publicDir: false,
+  resolve: {
+    conditions: [...defaultServerConditions],
+    mainFields: [...defaultServerMainFields],
+  },
+  build: {
+    target: 'node24',
+    lib: {
+      entry: fileURLToPath(new URL('./src/index.ts', import.meta.url)),
+      formats: ['es'],
+      fileName: () => 'index.js',
+    },
+    sourcemap: true,
+    minify: false,
+    rolldownOptions: {
+      platform: 'node',
+      external: (id) =>
+        isBuiltin(id) || /^@earendil-works\/pi-(coding-agent|tui|ai|agent-core)(?:\/|$)/.test(id),
+    },
+  },
 })
