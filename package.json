@@ -11,11 +11,18 @@
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
     "prepare": "node .husky/install.mjs",
-    "test": "node --test tests/*.test.ts"
+    "test": "node --test tests/*.test.ts tests/contract/*.test.ts",
+    "test:contract": "node --test tests/contract/*.test.ts",
+    "test:unit": "node --test tests/*.test.ts",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**/*.ts\" tests/*.test.ts tests/contract/*.test.ts"
+  },
+  "dependencies": {
+    "picomatch": "4.0.7"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "1.1.0",
     "@types/node": "^24.13.3",
+    "@types/picomatch": "4.0.3",
     "husky": "^9.1.7",
     "oxfmt": "^0.72.0",
     "oxlint": "^1.81.0",

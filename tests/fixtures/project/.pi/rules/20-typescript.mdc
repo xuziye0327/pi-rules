@@ -1,0 +1,5 @@
+---
+globs: ["src/**/*.ts", "!**/*.test.ts"]
+description: TypeScript sources
+---
+TypeScript instructions.

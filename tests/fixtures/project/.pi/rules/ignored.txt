@@ -1,0 +1,1 @@
+Files without the .mdc extension are not rules.
