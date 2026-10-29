@@ -13,23 +13,69 @@ function asSystem(message: Message): SystemMessage {
   return message
 }
 
-for (const { name, messages } of [
-  { name: 'an empty transcript', messages: [] },
-  {
-    name: 'a user message before the system message',
-    messages: [
-      { role: 'user', content: 'Hello', timestamp: 1 },
-      { role: 'system', content: 'Late prompt', timestamp: 2 },
-    ],
-  },
-] satisfies { name: string; messages: Message[] }[]) {
-  test(`replacement rejects ${name}`, () => {
-    assert.throws(() => replaceRulesSection(messages, 'New rules'), {
-      name: 'Error',
-      message: 'pi-rules requires a leading system message',
-    })
-  })
-}
+test('replacement prepends request-local rules when the transcript starts with a user', () => {
+  const user: Message = Object.freeze({ role: 'user', content: 'Hello', timestamp: 1 })
+  const original = Object.freeze([user])
+
+  const result = replaceRulesSection(original, 'New rules')
+
+  assert.deepEqual(result, [
+    { role: 'system', content: '', sections: { pi_rules: 'New rules' }, timestamp: 1 },
+    user,
+  ])
+  assert.strictEqual(result[1], user)
+  assert.deepEqual(original, [user])
+})
+
+test('a rules header preserves later prompt and tool deltas without moving conversation messages', () => {
+  const original: Message[] = [
+    { role: 'user', content: 'Hello', timestamp: 1 },
+    {
+      role: 'system',
+      content: 'Late prompt',
+      sections: { pi_rules: 'Stale rules', project: 'Keep project instructions' },
+      toolsAdded: [
+        { name: 'read', description: 'Read a file', parameters: { type: 'object', properties: {} } },
+      ],
+      timestamp: 2,
+    },
+  ]
+  const before = structuredClone(original)
+
+  const result = replaceRulesSection(original, 'New rules')
+
+  assert.deepEqual(result, [
+    { role: 'system', content: '', sections: { pi_rules: 'New rules' }, timestamp: 1 },
+    original[0],
+    { ...original[1], sections: { project: 'Keep project instructions' } },
+  ])
+  assert.deepEqual(original, before)
+})
+
+test('replacement can inject rules into an empty transcript', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1 })
+
+  assert.deepEqual(replaceRulesSection([], 'New rules'), [
+    { role: 'system', content: '', sections: { pi_rules: 'New rules' }, timestamp: 1 },
+  ])
+})
+
+test('empty rules do not add a system message to a transcript without a leading prompt', () => {
+  const user: Message = { role: 'user', content: 'Hello', timestamp: 1 }
+  const delta: SystemMessage = {
+    role: 'system',
+    content: 'Late prompt',
+    sections: { pi_rules: 'Stale rules', project: 'Keep project instructions' },
+    timestamp: 2,
+  }
+
+  assert.deepEqual(replaceRulesSection([], ''), [])
+  assert.deepEqual(replaceRulesSection([user, delta], ''), [
+    user,
+    { ...delta, sections: { project: 'Keep project instructions' } },
+  ])
+  assert.equal(delta.sections!.pi_rules, 'Stale rules')
+})
 
 test('replacement adds request-local rules without rewriting the leading prompt', () => {
   const leading: SystemMessage = Object.freeze({

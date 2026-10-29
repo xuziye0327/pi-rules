@@ -175,17 +175,26 @@ test('flag changes remove stale request sections and pause tool activation until
   assert.doesNotMatch(resumed.messages[0].sections.pi_rules, /Markdown instructions\./)
 })
 
-test('invalid system context never marks rules as injected', () => {
+test('active rules are injected when context has no leading system message', () => {
   const harness = extensionHarness()
   harness.emit('session_start')
-  assert.throws(
-    () =>
-      harness.emit('context_with_system', {
-        messages: [{ role: 'user', content: 'Missing system' }],
-      }),
-    /requires a leading system message/,
-  )
-  assert.equal(harness.engine.snapshot.injected.size, 0)
+  harness.emit('tool_call', { toolName: 'edit', input: { path: 'src/main.ts' } })
+  const user = { role: 'user', content: 'Edit the file', timestamp: 1 }
+  const messages = [user]
+
+  const result = harness.emit('context_with_system', { messages }) as {
+    messages: { role: string; content: string; sections?: Record<string, string> }[]
+  }
+
+  assert.equal(result.messages.length, 2)
+  assert.equal(result.messages[0].role, 'system')
+  assert.equal(result.messages[0].content, '')
+  assert.match(result.messages[0].sections!.pi_rules, /Project instructions\./)
+  assert.match(result.messages[0].sections!.pi_rules, /TypeScript instructions\./)
+  assert.strictEqual(result.messages[1], user)
+  assert.deepEqual(messages, [user])
+  assert.equal(harness.engine.snapshot.injected.size, 2)
+  assert.deepEqual(harness.engine.snapshot.warnings, [])
 })
 
 test('rules commands inspect disk without activating instructions and print in noninteractive mode', async () => {
