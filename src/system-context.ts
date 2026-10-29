@@ -4,11 +4,7 @@ type Messages = ContextWithSystemEvent['messages']
 
 /** Replace only this extension's request-local section, preserving transcript deltas. */
 export function replaceRulesSection(messages: readonly Messages[number][], text: string): Messages {
-  if (messages[0]?.role !== 'system') {
-    throw new Error('pi-rules requires a leading system message')
-  }
-
-  return messages.map((message, index) => {
+  const result = messages.map((message, index) => {
     if (message.role !== 'system') return message
 
     const sections = { ...message.sections }
@@ -21,4 +17,14 @@ export function replaceRulesSection(messages: readonly Messages[number][], text:
     }
     return copy
   })
+
+  if (messages[0]?.role !== 'system' && text !== '') {
+    result.unshift({
+      role: 'system',
+      content: '',
+      sections: { pi_rules: text },
+      timestamp: messages[0]?.timestamp ?? Date.now(),
+    })
+  }
+  return result
 }
