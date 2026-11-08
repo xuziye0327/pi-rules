@@ -99,7 +99,6 @@ export class RulesEngine {
     this.lastTargets = []
     this.lastTargetCwd = ''
     this.lastStats = undefined
-    this.matcher.clear()
     this.domains = { configuration: this.domains.configuration ?? [] }
     this.discoveryOptions = undefined
     try {
