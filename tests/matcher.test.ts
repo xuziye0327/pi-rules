@@ -240,7 +240,7 @@ for (const pattern of ['[', '![', '@(unclosed']) {
   })
 }
 
-test('cached invalid-glob diagnostics use the current alias and cannot be poisoned by callers', () => {
+test('invalid-glob diagnostics use the current alias and remain isolated between calls', () => {
   const matcher = new RuleMatcher()
   const candidate = rule({ metadata: { alwaysApply: false, globs: ['*.ts', '!['] } })
   const first = matcher.match(candidate, '/project/src/file.ts', '/project', true)
@@ -249,7 +249,6 @@ test('cached invalid-glob diagnostics use the current alias and cannot be poison
   assert.equal(first.diagnostics.length, 1)
   assert.equal(first.diagnostics[0].source, '/project/.pi/rules/typescript.md')
   assert.match(first.diagnostics[0].message, /^Invalid glob "!\[":/)
-  assert.deepEqual(matcher.cacheSizes, { compiled: 2, matches: 1 })
 
   first.diagnostics[0].message = 'poisoned'
   first.diagnostics[0].source = 'poisoned'
@@ -269,11 +268,10 @@ test('cached invalid-glob diagnostics use the current alias and cannot be poison
   assert.equal(second.diagnostics[0].code, 'invalid-glob')
   assert.equal(second.diagnostics[0].source, '/project/.pi/rules/alias.md')
   assert.match(second.diagnostics[0].message, /^Invalid glob "!\[":/)
-  assert.deepEqual(matcher.cacheSizes, { compiled: 2, matches: 1 })
   assert.notStrictEqual(second.diagnostics[0], first.diagnostics[0])
 })
 
-test('a cached compilation error is attributed to each distinct rule that uses it', () => {
+test('compilation errors are attributed to each distinct rule', () => {
   const matcher = new RuleMatcher()
   const first = rule({ metadata: { alwaysApply: false, globs: ['!['] } })
   const other = rule({
@@ -291,10 +289,9 @@ test('a cached compilation error is attributed to each distinct rule that uses i
   assert.equal(otherResult.diagnostics[0].code, 'invalid-glob')
   assert.equal(otherResult.diagnostics[0].source, '/project/.pi/rules/other.md')
   assert.match(otherResult.diagnostics[0].message, /^Invalid glob "!\[":/)
-  assert.deepEqual(matcher.cacheSizes, { compiled: 1, matches: 2 })
 })
 
-test('cached matches remain specific to the target, root, and inside status', () => {
+test('matches remain specific to the target, root, and inside status', () => {
   const matcher = new RuleMatcher()
   const candidate = rule({ isGlobal: true, metadata: { alwaysApply: false, globs: ['src/*.ts'] } })
 
@@ -311,15 +308,4 @@ test('cached matches remain specific to the target, root, and inside status', ()
   assert.deepEqual(matcher.match(candidate, '/project/src/file.ts', '/project', false), {
     diagnostics: [],
   })
-})
-
-test('clear removes cached outcomes so a changed rule is compiled and matched afresh', () => {
-  const matcher = new RuleMatcher()
-  const candidate = rule()
-  assert.equal(matcher.match(candidate, '/project/file.ts', '/project', true).reason, '*.ts')
-
-  matcher.clear()
-  const changed = rule({ metadata: { alwaysApply: false, globs: ['*.js'] } })
-  assert.deepEqual(matcher.match(changed, '/project/file.ts', '/project', true), { diagnostics: [] })
-  assert.equal(matcher.match(changed, '/project/file.js', '/project', true).reason, '*.js')
 })

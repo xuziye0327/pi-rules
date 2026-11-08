@@ -1,6 +1,6 @@
 {
   "name": "pi-rules",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,17 +17,18 @@
     "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**/*.ts\" tests/*.test.ts tests/contract/*.test.ts"
   },
   "dependencies": {
+    "front-matter": "4.0.2",
     "picomatch": "4.0.7"
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "1.1.0",
-    "@types/node": "^24.13.3",
+    "@earendil-works/pi-coding-agent": "1.5.0",
+    "@types/node": "^24.19.2",
     "@types/picomatch": "4.0.3",
     "husky": "^9.1.7",
     "oxfmt": "^0.72.0",
-    "oxlint": "^1.81.0",
-    "typescript": "~6.0.2",
-    "vite": "^8.3.0"
+    "oxlint": "^1.92.0",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.6"
   },
   "engines": {
     "node": ">=24.0.0"

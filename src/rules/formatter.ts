@@ -1,7 +1,8 @@
 import type { Diagnostic, FormatResult, LoadedRule, RulesConfig } from './types.ts'
 
-const OPEN = '<pi_rules>\n\n## Project Instructions\n'
+const OPEN = '<pi_rules>\n'
 const CLOSE = '\n</pi_rules>'
+const RULE_CLOSE = '\n</rule>'
 
 /** Format in caller-supplied priority order; only included entries spend budget. */
 export function formatRules(
@@ -15,9 +16,10 @@ export function formatRules(
   let remaining = config.maxResultChars - OPEN.length - CLOSE.length
 
   for (const rule of rules) {
-    const header = `Instructions from: ${rule.discoveredPath}\n`
+    const header = `<rule source="${escapeSourceAttribute(rule.discoveredPath)}">\n`
     const separatorLength = included.length === 0 ? 0 : 2
-    const capacity = Math.min(config.maxRuleChars, remaining - header.length - separatorLength)
+    const wrapperLength = header.length + RULE_CLOSE.length
+    const capacity = Math.min(config.maxRuleChars, remaining - wrapperLength - separatorLength)
     let body = rule.body
     let truncated = false
 
@@ -45,13 +47,13 @@ export function formatRules(
         code: 'rule-omitted',
         source: rule.discoveredPath,
         message:
-          'Rule omitted because its source header or minimum body does not fit the character budgets.',
+          'Rule omitted because its wrapper or minimum body does not fit the character budgets.',
       })
       continue
     }
 
-    entries.push(header + body)
-    remaining -= separatorLength + header.length + body.length
+    entries.push(header + body + RULE_CLOSE)
+    remaining -= separatorLength + wrapperLength + body.length
     included.push({ rule, truncated })
     if (truncated) {
       diagnostics.push({
@@ -69,6 +71,14 @@ export function formatRules(
     omitted,
     diagnostics,
   }
+}
+
+function escapeSourceAttribute(source: string): string {
+  return source
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
 }
 
 function isHighSurrogate(code: number): boolean {
