@@ -1,0 +1,61 @@
+name: Publish Pi extension
+
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-release
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Build
+        env:
+          HUSKY: '0'
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Publish to release
+        run: |
+          # Don't publish an older build after dev has moved on.
+          dev_head=$(git ls-remote --exit-code origin refs/heads/dev)
+          if [[ "${dev_head%%$'\t'*}" != "$GITHUB_SHA" ]]; then
+            echo 'Skipping publication: dev has moved on.'
+            exit 0
+          fi
+
+          # dist/ is untracked and stays in place when switching to release.
+          release_head=$(git ls-remote origin refs/heads/release)
+          if [[ -n "$release_head" ]]; then
+            git fetch --no-tags --depth=1 origin refs/heads/release
+            git switch --detach FETCH_HEAD
+          else
+            git switch --orphan release
+          fi
+
+          mkdir -p extensions
+          cp dist/index.js dist/index.js.map extensions/
+
+          git add -- extensions/index.js extensions/index.js.map
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m "Publish extension from ${GITHUB_SHA:0:12}"
+          fi
+          git push origin HEAD:refs/heads/release
