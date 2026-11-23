@@ -2,7 +2,15 @@ name: Publish Pi extension
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'bun.lock'
+      - 'tsconfig.json'
+      - '.husky/install.mjs'
+      - '.github/workflows/publish.yml'
 
 permissions:
   contents: write
@@ -33,10 +41,13 @@ jobs:
 
       - name: Publish to release
         run: |
-          # Don't publish an older build after dev has moved on.
-          dev_head=$(git ls-remote --exit-code origin refs/heads/dev)
-          if [[ "${dev_head%%$'\t'*}" != "$GITHUB_SHA" ]]; then
-            echo 'Skipping publication: dev has moved on.'
+          # Ignore newer docs-only commits, but never publish stale build inputs.
+          git fetch --no-tags --depth=1 origin refs/heads/main
+          changed=$(git diff --name-only "$GITHUB_SHA" FETCH_HEAD -- \
+            src/ tests/ package.json bun.lock tsconfig.json .husky/install.mjs \
+            .github/workflows/publish.yml)
+          if [[ -n "$changed" ]]; then
+            echo 'Skipping publication: build inputs on main have changed.'
             exit 0
           fi
 
