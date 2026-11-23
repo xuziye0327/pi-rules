@@ -1,0 +1,77 @@
+name: Publish Pi extension
+
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-main
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          path: source
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Test and build
+        working-directory: source
+        env:
+          HUSKY: '0'
+        run: |
+          bun install --frozen-lockfile
+          bun run test
+          bun run build
+
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: release
+
+      - name: Publish to main
+        working-directory: release
+        run: |
+          # Don't publish an older build after dev has moved on.
+          dev_head=$(git ls-remote --exit-code origin refs/heads/dev)
+          if [[ "${dev_head%%$'\t'*}" != "$GITHUB_SHA" ]]; then
+            echo 'Skipping publication: dev has moved on.'
+            exit 0
+          fi
+
+          # Keep the release root manifest-free so Pi skips dependency installation.
+          git rm -r --ignore-unmatch -- .husky .oxfmtrc.json .oxlintrc.json \
+            bun.lock package.json src tests tsconfig.json vite.config.ts
+          mkdir -p extensions
+          cp ../source/dist/index.js ../source/dist/index.js.map extensions/
+          test ! -e package.json
+          (
+            ln -s ../source/node_modules node_modules
+            trap 'rm -f node_modules' EXIT
+            node --input-type=module -e '
+              const { default: extension } = await import("./extensions/index.js");
+              if (typeof extension !== "function") throw new Error("Missing extension entry point");
+            '
+          )
+
+          git add -- extensions/index.js extensions/index.js.map
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "Publish extension from ${GITHUB_SHA:0:12}"
+          git push origin HEAD:refs/heads/main
